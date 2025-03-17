@@ -1,0 +1,8 @@
+flask
+flask-socketio
+flask-cors
+gevent
+gevent-websocket
+flask-jwt-extended
+flask-bcrypt
+flask-sqlalchemy
