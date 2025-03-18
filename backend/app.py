@@ -1,37 +1,27 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import random
 import time
 import threading
+import json
+import os
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+DATA_FILE = "stock_data.json"
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'supersecretkey'
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as file:
+            return json.load(file)
+    return {"balance": 10000.0, "stocks": {}}
 
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
-jwt = JWTManager(app)
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    balance = db.Column(db.Float, default=10000.0)  # Dinero del usuario
-    stocks = db.Column(db.JSON, default={})  # Acciones compradas
-
-with app.app_context():
-    db.create_all()
-
+def save_data(data):
+    with open(DATA_FILE, "w") as file:
+        json.dump(data, file)
 
 stock_data = {"symbol": "AAPL", "price": 150.0}
 
@@ -43,53 +33,38 @@ def generate_stock_prices():
 
 threading.Thread(target=generate_stock_prices, daemon=True).start()
 
-
 @app.route("/api/stock/info", methods=["GET"])
 def get_stock_info():
     return jsonify(stock_data)
 
-
-@app.route("/api/stock/buy", methods=["POST"])
-@jwt_required()
+@app.route("/api/stock/buy", methods=["GET"])
 def buy_stock():
-    data = request.json
-    username = get_jwt_identity()
-    quantity = int(data.get("quantity", 1))
-
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({"message": "Usuario no encontrado"}), 404
-
+    data = load_data()
+    quantity = 1
     total_cost = stock_data["price"] * quantity
-    if user.balance < total_cost:
-        return jsonify({"message": "Saldo insuficiente"}), 400
+    
+    if data["balance"] < total_cost:
+        return jsonify({"message": "Insufficient balance"}), 400
 
-    user.balance -= total_cost
-    user.stocks[stock_data["symbol"]] = user.stocks.get(stock_data["symbol"], 0) + quantity
-    db.session.commit()
+    data["balance"] -= total_cost
+    data["stocks"][stock_data["symbol"]] = data["stocks"].get(stock_data["symbol"], 0) + quantity
+    save_data(data)
 
-    return jsonify({"message": "Compra exitosa", "balance": user.balance, "stocks": user.stocks})
+    return jsonify({"message": "Purchase successful", "balance": data["balance"], "stocks": data["stocks"]})
 
-
-@app.route("/api/stock/sell", methods=["POST"])
-@jwt_required()
+@app.route("/api/stock/sell", methods=["GET"])
 def sell_stock():
-    data = request.json
-    username = get_jwt_identity()
-    quantity = int(data.get("quantity", 1))
+    data = load_data()
+    quantity = 1
+    
+    if stock_data["symbol"] not in data["stocks"] or data["stocks"][stock_data["symbol"]] < quantity:
+        return jsonify({"message": "Not enough stocks to sell"}), 400
 
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({"message": "Usuario no encontrado"}), 404
+    data["stocks"][stock_data["symbol"]] -= quantity
+    data["balance"] += stock_data["price"] * quantity
+    save_data(data)
 
-    if stock_data["symbol"] not in user.stocks or user.stocks[stock_data["symbol"]] < quantity:
-        return jsonify({"message": "No tienes suficientes acciones para vender"}), 400
-
-    user.stocks[stock_data["symbol"]] -= quantity
-    user.balance += stock_data["price"] * quantity
-    db.session.commit()
-
-    return jsonify({"message": "Venta exitosa", "balance": user.balance, "stocks": user.stocks})
+    return jsonify({"message": "Sale successful", "balance": data["balance"], "stocks": data["stocks"]})
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
