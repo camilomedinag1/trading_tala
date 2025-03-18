@@ -12,7 +12,7 @@ app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Configuración de SQLite
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'supersecretkey'
@@ -21,7 +21,7 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
-# Modelo de Usuario
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -32,10 +32,9 @@ class User(db.Model):
 with app.app_context():
     db.create_all()
 
-# Datos simulados de una acción
+
 stock_data = {"symbol": "AAPL", "price": 150.0}
 
-# Simulación de cambios de precio
 def generate_stock_prices():
     while True:
         stock_data["price"] += random.uniform(-1, 1)
@@ -44,12 +43,12 @@ def generate_stock_prices():
 
 threading.Thread(target=generate_stock_prices, daemon=True).start()
 
-# Endpoint para obtener información de la acción
+
 @app.route("/api/stock/info", methods=["GET"])
 def get_stock_info():
     return jsonify(stock_data)
 
-# Endpoint para comprar acciones
+
 @app.route("/api/stock/buy", methods=["POST"])
 @jwt_required()
 def buy_stock():
@@ -71,7 +70,7 @@ def buy_stock():
 
     return jsonify({"message": "Compra exitosa", "balance": user.balance, "stocks": user.stocks})
 
-# Endpoint para vender acciones
+
 @app.route("/api/stock/sell", methods=["POST"])
 @jwt_required()
 def sell_stock():
