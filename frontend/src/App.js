@@ -4,13 +4,13 @@ import axios from "axios";
 import { Line } from "react-chartjs-2";
 import "chart.js/auto";
 
-const socket = io("http://localhost:5000");
+const socket = io("http://127.0.0.1:5000");
 
 function App() {
     const [stockPrice, setStockPrice] = useState(150);
     const [priceHistory, setPriceHistory] = useState([]);
-    const [balance, setBalance] = useState(10000); // Saldo inicial
-    const [stocks, setStocks] = useState(0); // Cantidad de acciones
+    const [balance, setBalance] = useState(10000); // Initial balance
+    const [stocks, setStocks] = useState(0); // Owned stocks
 
     useEffect(() => {
         socket.on("stock_price", (data) => {
@@ -18,36 +18,40 @@ function App() {
             setPriceHistory((prev) => [...prev.slice(-49), data.price]);
         });
 
+        fetchBalanceAndStocks();
+
         return () => socket.off("stock_price");
     }, []);
 
-    const buyStock = async () => {
-        const token = localStorage.getItem("token"); // JWT guardado
+    const fetchBalanceAndStocks = async () => {
         try {
-            const res = await axios.post(
-                "http://localhost:5000/api/stock/buy",
-                { quantity: 1 },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const res = await axios.get("http://127.0.0.1:5000/api/stock/info");
+            setStockPrice(res.data.price);
+            const userRes = await axios.get("http://127.0.0.1:5000/api/stock/buy"); // Auto buy for fetching
+            setBalance(userRes.data.balance);
+            setStocks(userRes.data.stocks.AAPL || 0);
+        } catch (err) {
+            console.error("Error fetching stock data:", err);
+        }
+    };
+
+    const buyStock = async () => {
+        try {
+            const res = await axios.get("http://127.0.0.1:5000/api/stock/buy");
             setBalance(res.data.balance);
             setStocks(res.data.stocks.AAPL || 0);
         } catch (err) {
-            alert(err.response.data.message);
+            alert(err.response?.data?.message || "Error buying stock");
         }
     };
 
     const sellStock = async () => {
-        const token = localStorage.getItem("token");
         try {
-            const res = await axios.post(
-                "http://localhost:5000/api/stock/sell",
-                { quantity: 1 },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const res = await axios.get("http://127.0.0.1:5000/api/stock/sell");
             setBalance(res.data.balance);
             setStocks(res.data.stocks.AAPL || 0);
         } catch (err) {
-            alert(err.response.data.message);
+            alert(err.response?.data?.message || "Error selling stock");
         }
     };
 
@@ -83,4 +87,3 @@ function App() {
 }
 
 export default App;
-
