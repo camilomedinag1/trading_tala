@@ -4,13 +4,7 @@ A simple stock trading simulation app using Flask, React, and WebSockets.
 
 ## Installation
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/your-repo/stock-trading-app.git
-   cd stock-trading-app
-   ```
-
-2. Start the application using Docker:
+Start the application using Docker:
    ```sh
    docker-compose up --build
    ```
