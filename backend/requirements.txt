@@ -6,3 +6,4 @@ gevent-websocket
 flask-jwt-extended
 flask-bcrypt
 flask-sqlalchemy
+requests
