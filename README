@@ -15,6 +15,8 @@ Start the application using Docker:
 - The frontend is accessible at `http://localhost:3000`
 - Use the interface to buy and sell stocks in real-time
 
+To perform queries from the real data module, you must obtain a free API key at https://www.alphavantage.co
+
 ## API Endpoints
 
 - `GET /api/stock/info` → Get current stock data
